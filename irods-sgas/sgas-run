@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Run collector and send to SGAS.
+
+# Run collector as irods.
+/bin/su - irods -c /var/lib/irods/sgas/sgas-collector
+
+# Send to SGAS.
+/root/sgas/sgas-sr-registrant -c /root/sgas/sgas-sr-registrant.conf
+
+# Done :-).
+exit 0
+

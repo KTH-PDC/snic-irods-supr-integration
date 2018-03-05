@@ -1,0 +1,60 @@
+#!/bin/sh
+
+set -e
+
+if [ "$LOGNAME" != "irods" ]; then
+    echo "Run as user irods"
+    exit 1
+fi
+
+# Collect irods data
+/var/lib/irods/sgas/irods-star
+
+# Rawdir is the location of the generated records above
+rawdir=/var/lib/irods/sgas/star/raw
+
+# Sgasdir is the location of the mangled records to publish
+sgasdir=/var/lib/irods/sgas/star/records
+cd $rawdir || exit 1
+
+# Copy records from rawdir to sgasdir for processing
+# by the sgas-sr-registrant. Compress the source files.
+
+# Loop over each directory/file in the rawdir
+for sourcefile in [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]; do
+
+    # If no file exists, then the content of sourcefile would be
+    # regex above. Check here that it matched a file, if not then
+    # exit silently...
+    test -f "$rawdir/$sourcefile" || exit 0
+
+    # Generate the destination file name by merging sourcefile
+    # directory and file name (remove slash)
+    destfile=`echo $sourcefile | sed 's,/,,' `
+
+    # Get the directory name of the source file
+    dirname=`dirname $sourcefile`
+
+    # Exit if the source file doesn't exist. Could not happen.
+    test -f "$rawdir/$sourcefile" || exit 1
+    # Exit if the uncompressed destfile exists. Should not happen.
+    test -f "$rawdir/$destfile" && exit 1
+    # Exit if the compressed destfile exists. Should not happen.
+    test -f "$rawdir/$destfile.gz" && exit 1
+    # Exit if the sgas accounting file exists. Should not happen.
+    test -f "$sgasdir/$destfile" && exit 1
+
+    # Move the source file up one level and rename to destfile
+    mv "$rawdir/$sourcefile" "$rawdir/$destfile"
+    # Delete the source directory. If there are more files in it, then
+    # just silently ignore any problems.
+    rmdir --ignore-fail-on-non-empty "$rawdir/$dirname"
+    # Copy the source file to the destination directory
+    cp "$rawdir/$destfile" "$sgasdir/$destfile"
+    # Compress the source file
+    gzip -9 "$rawdir/$destfile"
+done
+
+# Done :-)
+exit 0
+
