@@ -135,6 +135,9 @@ class SUPR_IRODS:
 						self.sess.users.modify(userName, 'addAuth', certi_subj)
 						self.logger.info(userName + " certificate added to irods auth")
 
+					# Add Kerberos Prinicipal to irods
+					kerberos_principal = userName+"@SWESTORE.SE"
+					self.sess.users.modify(userName, 'addAuth', kerberos_principal)
 
 					newUser = True
 					self.ADD_PERS_MAIL += "SUPR ID :: " +  str(m.id) + "\t username(uid) :: " + userName +  "\t Person Name :: " + str((m.first_name).encode('utf-8')) + " " + str((m.last_name).encode('utf-8')) + "\n"
