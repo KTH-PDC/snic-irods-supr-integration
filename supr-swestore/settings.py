@@ -39,10 +39,10 @@ gidNumberStart      = 6000
 resource_centre_id  = 9
 
 # iRODS Resource ID in SUPR
-irods_resource_id   = 32
+irods_resource_id   = '32'
 
 # dcache Resource ID in SUPR for Swestore
-dcache_resource_id  = 31
+dcache_resource_id  = '31'
 
 # IRODS Settings for connection
 

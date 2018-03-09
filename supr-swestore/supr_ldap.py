@@ -10,6 +10,7 @@ import supr
 import settings
 import os, random, string
 import requests
+import supr_irods_pirc
 
 from requests import ConnectionError
 requests.packages.urllib3.disable_warnings()
@@ -22,125 +23,133 @@ class SUPR_LDAP:
 
 	def __init__(self, all_projects, persons_modified, supr_connection):
 
-		# Get Logging File Handler
-		self.logger          = setup_log(self.__class__.__name__, settings.LOG_FILE)
-		self.l               = None
-                self.ipa	     = None
+		if all_projects or persons_modified:
+			# Get Logging File Handler
+			self.logger          = setup_log(self.__class__.__name__, settings.LOG_FILE)
+			self.l               = None
+			self.ipa	     = None
+			self.irods_projects  = []
 
-		# Get supr_connection
-		self.supr_connection = supr_connection
+			# Get supr_connection
+			self.supr_connection = supr_connection
 
-		# LDAP search scope and other variables
-		self.searchScope    = ldap.SCOPE_SUBTREE
-		self.retrievedAttrs = None
+			# LDAP search scope and other variables
+			self.searchScope    = ldap.SCOPE_SUBTREE
+			self.retrievedAttrs = None
 
-		# Variables needed for calculating number of projects and persons created 
-		# that are used to sendMail to Admins
-		self.add_proj_cnt   = 0
-		self.mod_proj_cnt   = 0
-		self.err_proj_cnt   = 0
+			# Variables needed for calculating number of projects and persons created 
+			# that are used to sendMail to Admins
+			self.add_proj_cnt   = 0
+			self.mod_proj_cnt   = 0
+			self.err_proj_cnt   = 0
 
-		self.add_pers_cnt   = 0
-		self.mod_pers_cnt   = 0
-		self.err_pers_cnt   = 0
+			self.add_pers_cnt   = 0
+			self.mod_pers_cnt   = 0
+			self.err_pers_cnt   = 0
 
-		self.err_mjr_cnt    = 0
-		self.msgtext        = ""
+			self.err_mjr_cnt    = 0
+			self.msgtext        = ""
 
-		# Variables needed for Message Text of projects and persons created 
-		# that are used to sendMail to Admins
-		self.ADD_PERS_MAIL  = "The Following Persons have been Added on " + settings.today + "\n" 
-		self.ADD_PERS_MAIL += "---------------------------------------------------- \n"
+			# Variables needed for Message Text of projects and persons created 
+			# that are used to sendMail to Admins
+			self.ADD_PERS_MAIL  = "The Following Persons have been Added on " + settings.today + "\n" 
+			self.ADD_PERS_MAIL += "---------------------------------------------------- \n"
 
-		self.MOD_PERS_MAIL  = "The Following Persons have been Modified on " + settings.today + "\n" 
-		self.MOD_PERS_MAIL += "---------------------------------------------------- \n"
+			self.MOD_PERS_MAIL  = "The Following Persons have been Modified on " + settings.today + "\n" 
+			self.MOD_PERS_MAIL += "---------------------------------------------------- \n"
 
-		self.ADD_PROJ_MAIL  = "The Following Projects have been Added on " + settings.today + "\n" 
-		self.ADD_PROJ_MAIL += "----------------------------------------------------- \n"
+			self.ADD_PROJ_MAIL  = "The Following Projects have been Added on " + settings.today + "\n" 
+			self.ADD_PROJ_MAIL += "----------------------------------------------------- \n"
 
-		self.MOD_PROJ_MAIL  = "The Following Projects have been Modified on " + settings.today 
-		self.MOD_PROJ_MAIL += "\n" + "----------------------------------------------------- \n"
+			self.MOD_PROJ_MAIL  = "The Following Projects have been Modified on " + settings.today 
+			self.MOD_PROJ_MAIL += "\n" + "----------------------------------------------------- \n"
 
-		self.ERR_PROJ_MAIL  = "Error in creating the following Projects on " + settings.today + "\n" 
-		self.ERR_PROJ_MAIL += "------------------------------------------------------- \n"
+			self.ERR_PROJ_MAIL  = "Error in creating the following Projects on " + settings.today + "\n" 
+			self.ERR_PROJ_MAIL += "------------------------------------------------------- \n"
 
-		self.ERR_PERS_MAIL  = "Error in creating the following Persons on " + settings.today + "\n" 
-		self.ERR_PERS_MAIL += "------------------------------------------------------ \n"
+			self.ERR_PERS_MAIL  = "Error in creating the following Persons on " + settings.today + "\n" 
+			self.ERR_PERS_MAIL += "------------------------------------------------------ \n"
 
-		self.ERR_MJR_MAIL   = "Major Error Occured on " + settings.today + "\n" 
-		self.ERR_MJR_MAIL  += "---------------------------------- \n"
+			self.ERR_MJR_MAIL   = "Major Error Occured on " + settings.today + "\n" 
+			self.ERR_MJR_MAIL  += "---------------------------------- \n"
 
-		# Connect to LDAP using python-LDAP
-		try:
-			ldap.set_option(ldap.OPT_X_TLS_CACERTFILE,settings.TLS_CACERTFILE)
-			#ldap.set_option(ldap.OPT_X_TLS_CERTFILE,settings.TLS_CERTFILE)
-			#ldap.set_option(ldap.OPT_X_TLS_KEYFILE,settings.TLS_KEYFILE)
-			ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT,ldap.OPT_X_TLS_NEVER)
+			# Connect to LDAP using python-LDAP
+			try:
+				ldap.set_option(ldap.OPT_X_TLS_CACERTFILE,settings.TLS_CACERTFILE)
+				#ldap.set_option(ldap.OPT_X_TLS_CERTFILE,settings.TLS_CERTFILE)
+				#ldap.set_option(ldap.OPT_X_TLS_KEYFILE,settings.TLS_KEYFILE)
+				ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT,ldap.OPT_X_TLS_NEVER)
 
-			self.l = ldap.initialize(settings.LDAP_HOST)
-			#self.l = ldap.open(settings.LDAP_HOST)
-			self.l.simple_bind(settings.LDAP_ADMIN, settings.LDAP_PASSWORD)
-		except ldap.LDAPError as le:
-			self.logger.error("LDAP Connection Error - %s", le)
-			if self.l:
-				self.l.unbind()
+				self.l = ldap.initialize(settings.LDAP_HOST)
+				#self.l = ldap.open(settings.LDAP_HOST)
+				self.l.simple_bind(settings.LDAP_ADMIN, settings.LDAP_PASSWORD)
+			except ldap.LDAPError as le:
+				self.logger.error("LDAP Connection Error - %s", le)
+				if self.l:
+					self.l.unbind()
 
-			self.ERR_MJR_MAIL += "Error occured in LDAP Connection - " + str(le) + "\n"
-			self.err_mjr_cnt  += 1
-			sendMail(self.ERR_MJR_MAIL, settings.FROM_ADDRS, settings.DCACHE_ADMIN_MAIL, settings.LDAP_SUBJECT)
-			sys.exit(1)
+				self.ERR_MJR_MAIL += "Error occured in LDAP Connection - " + str(le) + "\n"
+				self.err_mjr_cnt  += 1
+				sendMail(self.ERR_MJR_MAIL, settings.FROM_ADDRS, settings.DCACHE_ADMIN_MAIL, settings.LDAP_SUBJECT)
+				sys.exit(1)
 
-		# Connect to FreeIPA
-		try:
-			self.ipa = ipahttp.ipa(settings.IPA_HOST)
-                        self.ipa.log = setup_log("IPA_ADD_USER", settings.IPA_LOG_FILE)
-			self.ipa.login(settings.IPA_ADMIN_USER, settings.IPA_ADMIN_PWD)
-		except Exception as e:
-			self.logger.error("FreeIPA Connection Error - %s", e)
-			self.ERR_MJR_MAIL += "Error occured in FreeIPA Connection - " + str(e) + "\n"
-			self.err_mjr_cnt  += 1
-			sendMail(self.ERR_MJR_MAIL, settings.FROM_ADDRS, settings.DCACHE_ADMIN_MAIL, settings.LDAP_SUBJECT)
-			sys.exit(1)
+			# Connect to FreeIPA
+			try:
+				self.ipa = ipahttp.ipa(settings.IPA_HOST)
+				self.ipa.log = setup_log("IPA_ADD_USER", settings.IPA_LOG_FILE)
+				self.ipa.login(settings.IPA_ADMIN_USER, settings.IPA_ADMIN_PWD)
+			except Exception as e:
+				self.logger.error("FreeIPA Connection Error - %s", e)
+				self.ERR_MJR_MAIL += "Error occured in FreeIPA Connection - " + str(e) + "\n"
+				self.err_mjr_cnt  += 1
+				sendMail(self.ERR_MJR_MAIL, settings.FROM_ADDRS, settings.DCACHE_ADMIN_MAIL, settings.LDAP_SUBJECT)
+				sys.exit(1)
 
-		# Call to addUpdateProjects() Function
-		if all_projects:
-			# Assigning the all_projects from supr_swestore_main
-			self.all_projects = all_projects
-			self.addUpdateProjects()
+			# Call to addUpdateProjects() Function
+			if all_projects:
+				# Assigning the all_projects from supr_swestore_main
+				self.all_projects = all_projects
+				self.addUpdateProjects()
 
-		# Call to updateDeleteProjects() Function
-		if persons_modified:
-			# Assigning the persons_modified from supr_swestore_main
-			self.persons_modified = persons_modified
-			self.updateDeletePersons()
+			# Call to updateDeleteProjects() Function
+			if persons_modified:
+				# Assigning the persons_modified from supr_swestore_main
+				self.persons_modified = persons_modified
+				self.updateDeletePersons()
 
-		# Call to sendMail() Function
-		if self.err_mjr_cnt:
-			self.msgtext += str(self.ERR_MJR_MAIL) + "\n"
-		if self.err_proj_cnt:
-			self.msgtext += str(self.ERR_PROJ_MAIL) + "\n"
-		if self.err_pers_cnt:
-			self.msgtext += str(self.ERR_PERS_MAIL) + "\n"
-		if self.add_proj_cnt:
-			self.msgtext += str(self.ADD_PROJ_MAIL) + "\n"
-		if self.mod_proj_cnt:
-			self.msgtext += str(self.MOD_PROJ_MAIL) + "\n"
-		if self.add_pers_cnt:
-			self.msgtext += str(self.ADD_PERS_MAIL) + "\n"
-		if self.mod_pers_cnt:
-			self.msgtext += str(self.MOD_PERS_MAIL) + "\n"
-		if self.msgtext:
-			sendMail(self.msgtext, settings.FROM_ADDRS, settings.DCACHE_ADMIN_MAIL, settings.LDAP_SUBJECT)
+			# Call to sendMail() Function
+			if self.err_mjr_cnt:
+				self.msgtext += str(self.ERR_MJR_MAIL) + "\n"
+			if self.err_proj_cnt:
+				self.msgtext += str(self.ERR_PROJ_MAIL) + "\n"
+			if self.err_pers_cnt:
+				self.msgtext += str(self.ERR_PERS_MAIL) + "\n"
+			if self.add_proj_cnt:
+				self.msgtext += str(self.ADD_PROJ_MAIL) + "\n"
+			if self.mod_proj_cnt:
+				self.msgtext += str(self.MOD_PROJ_MAIL) + "\n"
+			if self.add_pers_cnt:
+				self.msgtext += str(self.ADD_PERS_MAIL) + "\n"
+			if self.mod_pers_cnt:
+				self.msgtext += str(self.MOD_PERS_MAIL) + "\n"
+			if self.msgtext:
+				sendMail(self.msgtext, settings.FROM_ADDRS, settings.DCACHE_ADMIN_MAIL, settings.LDAP_SUBJECT)
+
+			# Call to function to create iRODS Users and Projects
+			if self.irods_projects:
+					self.irods_projects.sort(key = lambda p: p.id)
+					supr_irods_pirc.SUPR_IRODS(self.irods_projects, [])
 
 
 	# Mail to be to be sent to User for FreeIPA
-	def sendIPAMail(m, proj_name, password):
+	def sendIPAMail(self,m):
 
-		msgTxt  = "Dear " + m.first_name + " " + m.last_name + ",\n \n"
-		msgTxt += "You are receiving this mail as you are added as a member to Swestore project -- " + proj_name + " in SUPR. \n\n"
-		msgTxt += "To set password to access Swestore (dCache or iRods), login to https://ipa.nsc.liu.se/ipa/ui/ \n"
-		msgTxt += "Your username to login -- " + str(m.centre_person_id) + "\n"
-		msgTxt += "Your temporary password -- " + password + "\n"
+		msgTxt  = msgTxt  = "Dear " + m.first_name + " " + m.last_name + ",\n \n"
+		#msgTxt += "You are receiving this mail as you are added as a member to Swestore project -- " + proj_name + " in SUPR. \n\n"
+		msgTxt += "To set password to access Swestore/dCache or Swestore/iRods, login to portal - http://auth1.swestore.se/ipa/supr/supr-auth1.cgi \n"
+		msgTxt += "First time, you will be redirected to SUPR for confirmation and then you can set a password which you can use to login to Swestore/iRods \n"
+		msgTxt += "To know more on how to set password in IPA please refer to the following links :- \n"
+
 		msgTxt += "http://snicdocs.nsc.liu.se/wiki/Swestore#Using_Swestore \n\n"
 
 		msgTxt += "In case of any issues or clarifications, please mail support@swestore.se. \n\n"
@@ -150,18 +159,18 @@ class SUPR_LDAP:
 
 
 	# Mail to be to be sent to User
-	def sendUserMail(m, proj_name, sua_accepted):
+	def sendUserMail(self,m, proj_name, sua_accepted):
 
 		msgTxt  = "Dear " + m.first_name + " " + m.last_name + ",\n \n"
 		msgTxt += "You are receiving this mail as you are added as a member to Swestore project -- " + proj_name + " in SUPR. \n \n"
 
 		if not sua_accepted:
-			msgTxt += "We have noticed that you have not signed SNIC User Agreement Policy, SUA.\n"
-			msgTxt += "Before access to Swestore is granted, the SUA must be read and accepted.\n"
-			msgTxt += "Login to SUPR (https://supr.snic.se/login), go to Personal Information and sign the SUA using Federated Identity. \n\n"
+			msgTxt += "We have noticed that you have not signed the SNIC User Agreement.\n"
+			msgTxt += "Before access to Swestore is granted, the SNIC User Agreement must be read and accepted.\n"
+			msgTxt += "Login to SUPR (https://supr.snic.se/login), go to Personal Information and sign the SNIC User Agreement using Federated Identity. \n\n"
 		else:
 			if not m.subject:
-				msgTxt += "Please upload your eScience client certificate in SUPR as this is mandatory to authenticate and use Swestore(dCache) .\n"
+				msgTxt += "Please register your eScience client certificate in SUPR as this is mandatory to authenticate and use Swestore/dCache .\n"
 				msgTxt += "Login to SUPR (https://supr.snic.se/login), go to Personal Information, click Register Client Certificate and follow the instructions.\n"
 				msgTxt += "Please wait for up to 10 minutes for this information to be distributed to Swestore. \n\n"
 			msgTxt += "To know more on how to access Swestore, please refer to the following links :- \n"
@@ -362,7 +371,7 @@ class SUPR_LDAP:
 			self.addPersonAsProject(attrsPerson)
 			
 			# Adding Person to FreeIPA
-			self.addPersontoFreeIPA(attrsPerson)
+			self.addPersontoFreeIPA(m,attrsPerson)
 
 		except ldap.LDAPError as le:
 			self.logger.error("LDAP Error in addPerson Module for %s :: %s", str(uidNumber), le)
@@ -371,7 +380,7 @@ class SUPR_LDAP:
 
 
 	# Function to add new person to ipa
-	def addPersontoFreeIPA(self,attrsPerson):
+	def addPersontoFreeIPA(self,m,attrsPerson):
 
 		length = 13
 		chars = string.ascii_letters + string.digits + '!@#$%^&*()'
@@ -384,10 +393,10 @@ class SUPR_LDAP:
 			        "sn": attrsPerson['sn'], 
 			        "mail" : attrsPerson['mail'], 
 			        "uidnumber":attrsPerson['uidNumber'],
-			        #"userpassword":tmp_password, # uncomment when ipa goes to production
+			        "userpassword":tmp_password, # uncomment when ipa goes to production
 			        }
 			result = self.ipa.user_add(user, opts)
-			#sendIPAMail()
+			self.sendIPAMail(m)
 
 		except Exception as e:
 			self.logger.error("Error in addPersontoFreeIPA Module for %s :: %s", str(attrsPerson['uid']), e)
@@ -406,19 +415,19 @@ class SUPR_LDAP:
 				result_data = self.searchPerson(uidNumber)
 
 				if(result_data == []):
-					# Kris : check for uidnumber in memberUids in groups
+					# Kris : Add code here to check for uidnumber in memberUids in groups
 					gidNumbers = self.searchMemberUid(uidNumber)
 					if not gidNumbers == []:
 						if m.user_agreement_version and m.user_agreement_accepted:
 
 							for gidNumber in gidNumbers:
-								# Kris Added code here.
+								# Kris Add code here.
 								
 								gid = gidNumber[1].get('gidNumber')[0]
 								resourceIDList = gidNumber[1].get('resourceID')
-								
+
 								groupDN = "gidNumber=" + gid + "," + settings.groupsDN
-								oldMemberUid = {'memberUid': [uidNumber]}
+								oldMemberUid = {'memberUid':_[uidNumber]}
 								newMemberUid = {'memberUid': [m.centre_person_id]}
 								ldif = modlist.modifyModlist(oldMemberUid,newMemberUid)
 								self.l.modify_s(groupDN,ldif)
@@ -503,6 +512,7 @@ class SUPR_LDAP:
 
 			for rp in p.resourceprojects:
 				resourceIDList.append(str(rp.resource.id))
+
 				#resourceList.append(rp.resource)
 
 			for m in p.members:
@@ -515,12 +525,14 @@ class SUPR_LDAP:
 					if m.user_agreement_version and m.user_agreement_accepted:
 						self.addPerson(m,uidNumber,resourceIDList)
 						sua_accepted = True
-						
+
+						# To send user mail regarding user certificate registration in SUPR for dcache projects
 						if settings.dcache_resource_id in resourceIDList:
 							self.sendUserMail(m, p.name, sua_accepted)
 						self.logger.info("Person with SUPR ID :: %s SUP is signed and will be added to LDAP.", m.id)
 					else:
 						sua_accepted = False
+						# To send user mail regarding SUA in SUPR for all projects
 						self.sendUserMail(m, p.name, sua_accepted)
 						self.logger.info("Person with SUPR ID :: %s SUP is not signed and will not be added to LDAP.", m.id)
 						
@@ -529,11 +541,14 @@ class SUPR_LDAP:
 				else:
 					if(result_data[0][1].get('uid')[0]):
 						m.centre_person_id = result_data[0][1].get('uid')[0]
+						#self.sendIPAMail(m)
 
 					self.logger.info("Person with SUPR ID :: %s - Already added to LDAP \n", m.id)
 
 				memberUIDList.append(str(m.centre_person_id))
 
+			if settings.irods_resource_id in resourceIDList:
+				self.irods_projects.append(p)
 
 			# Generate gidNumber for new Project 
 			# ( Example 6012 - 6000 is the start range and 12 is the project id from SUPR )	

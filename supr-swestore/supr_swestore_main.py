@@ -8,7 +8,6 @@ import sys
 import supr
 
 import settings
-import supr_irods_pirc
 import supr_ldap
 
 from supr_common import (setup_log,
@@ -52,18 +51,14 @@ except ConnectionError as ce:
 	sendMail("Connection to SUPR failed - " + str(ce), settings.FROM_ADDRS, settings.DCACHE_ADMIN_MAIL, "SUPR - SWESTORE Connection Error")
 	sys.exit(1)
 
-irods_projects   = []
 all_projects     = []
 persons_modified = []
+
 
 # Loop through the results from the search in SUPR
 for p in res.matches:
 
 	all_projects.append(p)
-
-	# Appending irods Projects to irods_projects collection
-	if settings.irods_resource_id in (rp.resource.id for rp in p.resourceprojects):
-		irods_projects.append(p)
 
 
 # Search in SUPR
@@ -95,11 +90,6 @@ if all_projects or persons_modified:
 		persons_modified.sort(key = lambda m: m.id)
 
 	supr_ldap.SUPR_LDAP(all_projects, persons_modified, supr_connection)
-
-# Call to function to create iRODS Users and Projects
-if irods_projects:
-	irods_projects.sort(key = lambda p: p.id)
-	supr_irods_pirc.SUPR_IRODS(irods_projects)
 
 # updating modified_since time to file
 try:
