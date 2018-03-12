@@ -1,8 +1,10 @@
 #!/usr/bin/python
 #! -*- coding: utf-8 -*-
 
+import ldap
 import logging
 import smtplib
+import os, random, string
 
 from email.mime.text import MIMEText
 from email.header import Header
@@ -49,7 +51,14 @@ def asciify(string):
 # Individual classes can configure accordingly
 def setup_log(logger_name, log_file, level=logging.INFO):
 	# logging configuration
+	logging.basicConfig(level=logging.INFO,
+                    format=LOG_FILE_FORMAT,
+                    datefmt=LOG_FILE_DATEFORMAT,
+                    stream=log_file,
+                    filemode='w')
+
 	logger    = logging.getLogger(logger_name)
+
 	hdlr      = logging.FileHandler(log_file)
 	formatter = logging.Formatter(LOG_FILE_FORMAT, LOG_FILE_DATEFORMAT)
 	hdlr.setFormatter(formatter)
@@ -82,3 +91,31 @@ def sendMail(msgtext, from_address, to_address, subject):
 		finally:
 			if s:
 				s.quit()
+
+
+# Function to get generate temporary password
+def temp_password():
+	length = 13
+	chars = string.ascii_letters + string.digits + '!@#$%^&*()'
+	random.seed = (os.urandom(1024))
+	tmp_password = ''.join(random.choice(chars) for i in range(length))
+	return tmp_password
+
+# Function to get LDAP Connection
+def get_ldap_connection(tls_present):
+
+	# Connect to LDAP using python-LDAP
+	try:
+		if tls_present:
+			ldap.set_option(ldap.OPT_X_TLS_CACERTFILE,settings.TLS_CACERTFILE)
+			ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT,ldap.OPT_X_TLS_DEMAND)
+			l = ldap.initialize(settings.LDAP_HOST)
+		else:
+			l = ldap.open(settings.LDAP_HOST)
+
+		l.simple_bind(settings.LDAP_ADMIN, settings.LDAP_PASSWORD)
+	except ldap.LDAPError as le:
+		log_main.error("LDAP Connection Error - %s", le)
+		if l:
+			l.unbind()
+		sys.exit(1)

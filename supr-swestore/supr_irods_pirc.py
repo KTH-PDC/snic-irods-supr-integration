@@ -9,7 +9,8 @@ from irods.access import iRODSAccess
 from irods.exception import *
 
 from supr_common import (sendMail,
-			 setup_log)
+			 setup_log,
+			 temp_password)
 
 class SUPR_IRODS:
 
@@ -130,6 +131,9 @@ class SUPR_IRODS:
 				try:
 					user     = self.sess.users.create(userName, "rodsuser")
 					self.logger.info(userName + " user created")
+					
+					# Kris: Add temporary user password to irods
+					self.sess.users.modify(userName, 'password', temp_password())
 					
 					if not certi_subj == "":
 						self.sess.users.modify(userName, 'addAuth', certi_subj)

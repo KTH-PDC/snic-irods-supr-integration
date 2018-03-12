@@ -8,7 +8,6 @@ import logging
 import sys
 import supr
 import settings
-import os, random, string
 import requests
 import supr_irods_pirc
 
@@ -17,7 +16,8 @@ requests.packages.urllib3.disable_warnings()
 
 from supr_common import (asciify,
                          sendMail,
-                         setup_log)
+                         setup_log,
+                         temp_password)
 
 class SUPR_LDAP:
 
@@ -382,10 +382,7 @@ class SUPR_LDAP:
 	# Function to add new person to ipa
 	def addPersontoFreeIPA(self,m,attrsPerson):
 
-		length = 13
-		chars = string.ascii_letters + string.digits + '!@#$%^&*()'
-		random.seed = (os.urandom(1024))
-		tmp_password = ''.join(random.choice(chars) for i in range(length))
+
 
 		try:
 			user = attrsPerson['uid']
@@ -393,7 +390,7 @@ class SUPR_LDAP:
 			        "sn": attrsPerson['sn'], 
 			        "mail" : attrsPerson['mail'], 
 			        "uidnumber":attrsPerson['uidNumber'],
-			        "userpassword":tmp_password, # uncomment when ipa goes to production
+			        "userpassword":temp_password(), # uncomment when ipa goes to production
 			        }
 			result = self.ipa.user_add(user, opts)
 			self.sendIPAMail(m)
