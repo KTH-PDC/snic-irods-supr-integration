@@ -1,7 +1,6 @@
 #!/usr/bin/python
 #! -*- coding: utf-8 -*-
 
-import ldap
 import logging
 import smtplib
 import os, random, string
@@ -51,11 +50,11 @@ def asciify(string):
 # Individual classes can configure accordingly
 def setup_log(logger_name, log_file, level=logging.INFO):
 	# logging configuration
-	logging.basicConfig(level=logging.INFO,
-                    format=LOG_FILE_FORMAT,
-                    datefmt=LOG_FILE_DATEFORMAT,
-                    stream=log_file,
-                    filemode='w')
+	#logging.basicConfig(level=logging.INFO,
+        #            format=LOG_FILE_FORMAT,
+        #            datefmt=LOG_FILE_DATEFORMAT,
+        #            stream=log_file,
+        #            filemode='w')
 
 	logger    = logging.getLogger(logger_name)
 
