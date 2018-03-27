@@ -22,9 +22,10 @@ PROJECT_NAMES = "select distinct data_owner_name from r_data_main;"
 PHYSICAL_USAGE_QUERY = """
 SELECT
     data_owner_name  AS gid,
-    'snic2-irods.nsc.liu.se' AS site,
+    'SE-SNIC-IRODS' AS site,
     'disk' AS media,
-    SUM(data_size)::int8 as size
+    SUM(data_size)::int8 as size,
+    COUNT(1) AS count
 FROM
     r_data_main
 GROUP BY
@@ -32,12 +33,10 @@ GROUP BY
 ;
 """
 
-LOGICAL_USAGE_QUERY = "SELECT data_owner_name AS gid, SUM(data_size) AS size, COUNT(1) AS count FROM r_data_main GROUP BY data_owner_name;"
-
 def query_chimera(query):
     db_name = 'ICAT'
-    db_host = ''
-    db_user = ''
+    db_host = '127.0.0.1'
+    db_user = 'irods'
     db_pw = ''
     conn = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_pw)
     try:
@@ -84,18 +83,20 @@ def last_record_time():
     return when
 
 
-def createPhysicalRecordArgs(create_time, storage_share, storage_media, group, end_time, resource_capacity_used):
+def createPhysicalRecordArgs(create_time, storage_share, storage_media, group, end_time, resource_capacity_used, count):
     result = {
         'record_id'       : build_id(group, storage_media, create_time),
         'create_time'     : create_time,
-        'storage_share'   : storage_share,
+        'storage_share'   : 'PROJECT',
         'storage_media'   : storage_media,
         'group'           : group,
         'start_time'      : last_record_time(),
         'end_time'        : end_time,
+        'file_count'      : count,
         'resource_capacity_used' : resource_capacity_used,
+        'logical_capacity_used' : resource_capacity_used,
         'storage_system'  : 'irods.swestore.se',
-        'site'            : 'SNIC2-IRODS'
+        'site'            : 'SE-SNIC-IRODS'
     }
 
     if storage_share:
@@ -103,27 +104,6 @@ def createPhysicalRecordArgs(create_time, storage_share, storage_media, group, e
 
     return result
 
-
-def createLogicalRecordArgs(create_time, group, end_time, logical_capacity_used, count, sums):
-    # NB. StAR v1.2 forces us to publish RCU.  Here we calculate the
-    #     appropriate value for this logical record.
-    total_rcu = 0
-    for (this_group, this_share, this_media), rcu in sums.items():
-       if this_group == group:
-          total_rcu += rcu
-
-    return {
-        'record_id'       : build_id(group, '', create_time),
-        'create_time'     : create_time,
-        'group'           : group,
-        'start_time'      : last_record_time(),
-        'end_time'        : end_time,
-        'resource_capacity_used' : total_rcu,
-        'logical_capacity_used' : logical_capacity_used,
-        'file_count'      : count,
-        'storage_system'  : 'irods.swestore.se',
-        'site'            : 'SNIC2-IRODS'
-    }
 
 
 def split_fqan(group_arg):
@@ -141,7 +121,7 @@ def write_identity(f, rec_args):
     group, roles = split_fqan(rec_args ["group"])
 
     f.write("    <sr:SubjectIdentity>\n")
-    f.write("      <sr:Group>" + group + "</sr:Group>\n")
+    f.write("      <sr:LocalGroup>" + group + "</sr:LocalGroup>\n")
 
     for role in roles:
        if role.startswith("Role="):
@@ -179,7 +159,7 @@ def write_record(f, rec_args):
 
 
 def build_id(group, media, now):
-    site = 'SNIC2-IRODS'
+    site = 'SE-SNIC-IRODS'
     if group [0] == '/':
        g = group [1:]
     else:
@@ -190,37 +170,23 @@ def build_id(group, media, now):
 
 def fetch_physical_record_data():
     sums = {}
+    counts = {}
     group = ''
 
     for record in query_chimera(PHYSICAL_USAGE_QUERY):
-        gid, site_pool, media, rcu = record
+        gid, site_pool, media, rcu, count = record
 
         share = STORAGE_SHARE_MAPPING.get(site_pool)
         if str(gid) in GID_MAPPING:
-			group = str(gid)
+		group = str(gid)
 
         if group:
            key = (group, share, media)
            sums [key] = sums.get(key, 0) + rcu
-    
-    return sums
-
-
-def fetch_logical_record_data():
-    sums = {}
-    counts = {}
-    group = ''
-    for record in query_chimera(LOGICAL_USAGE_QUERY):
-        gid, lcu, count = record
-
-        if str(gid) in GID_MAPPING:
-			group = str(gid)
-
-        if group:
-           sums [group] = sums.get(group, 0) + lcu
            counts [group] = counts.get(group, 0) + count
-
+    
     return sums, counts
+
 
 
 def open_records_file():
@@ -244,8 +210,7 @@ def open_records_file():
 
 
 def write_records(now):
-   physical_sums = fetch_physical_record_data()
-   logical_sums, counts = fetch_logical_record_data()
+   physical_sums, counts = fetch_physical_record_data()
 
    f = open_records_file()
    try:
@@ -253,12 +218,8 @@ def write_records(now):
        f.write("<sr:StorageUsageRecords xmlns:sr='http://eu-emi.eu/namespaces/2011/02/storagerecord'>\n")
 
        for (group, share, media), rcu in physical_sums.items():
-          rec_args = createPhysicalRecordArgs(now, share, media, group, now, rcu)
-          write_record(f, rec_args)
-
-       for group, lcu in logical_sums.items():
-          count = counts.get(group, 0)
-          rec_args = createLogicalRecordArgs(now, group, now, lcu, count, physical_sums)
+	  count = counts.get(group, 0)
+          rec_args = createPhysicalRecordArgs(now, share, media, group, now, rcu, count)
           write_record(f, rec_args)
 
        f.write("</sr:StorageUsageRecords>\n")
