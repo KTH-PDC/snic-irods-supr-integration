@@ -15,9 +15,10 @@ requests.packages.urllib3.disable_warnings()
 
 from supr_common import (asciify,
                          sendMail,
-                         setup_log)
+                         setup_log,
+                         temp_password)
 
-logger              = setup_log("IPA_ADD_USER", settings.IPA_LOG_FILE)
+logger              = setup_log("IPA_SET_PWD", "logs/ipa_set_pwd_1time.log")
 
 
 
@@ -30,7 +31,7 @@ def addPersontoFreeIPA(m):
 			"sn": m.last_name, 
 			"mail" : m.email, 
 			"uidnumber": uidNumber,
-			#"description":str(m.id),
+			"userpassword":temp_password(),
 			}
 		result = ipa.user_add(user, opts)
                 print result
@@ -74,9 +75,12 @@ except Exception as e:
 for p in res.matches:
 	for m in p.members:
 		user = m.centre_person_id
-                print user 
+		principal = user+ "@SWESTORE.SE"
+                print (str(m.id) + " --  " + m.centre_person_id)  
 		reply = ipa.user_find(user)
 		if reply['result']['result']:
-			logger.info(user + " already exists in IPA")
+			ipa.passwd(principal,temp_password())
+			logger.info(user + " already exists in IPA. Adding a temp password")
 		else:
 			addPersontoFreeIPA(m)
+                        logger.info(user + " added to IPA with temp password")
