@@ -337,8 +337,9 @@ class SUPR_LDAP:
 
 			self.logger.info("Person with SUPR ID :: %s added to LDAP -- %s", m.id, str(uidNumber))
 
-			self.ADD_PERS_MAIL += "SUPR ID :: " +  str(m.id) + "\t username(uid) :: " + attrsPerson['uid'] +  "\t Person Name :: " + attrsPerson['cn'] + "\n"
-			self.add_pers_cnt  += 1
+			if settings.dcache_resource_id in resourceIDList:
+				self.ADD_PERS_MAIL += "SUPR ID :: " +  str(m.id) + "\t username(uid) :: " + attrsPerson['uid'] +  "\t Person Name :: " + attrsPerson['cn'] + "\n"
+				self.add_pers_cnt  += 1
 
 			if m.centre_person_id:
 				self.logger.info("Person with SUPR ID :: %s centre_person_id already exists -- %s", m.id, m.centre_person_id)
@@ -405,6 +406,7 @@ class SUPR_LDAP:
 			result = self.ipa.user_add(user, opts)
 			self.sendIPAMail(m)
 
+			self.logger.info("Person with SUPR ID :: %s added to IPA -- %s", m.id, str(uidNumber))
 			self.IPA_PERS_MAIL += "SUPR ID :: " +  str(m.id) + "\t username(uid) :: " + attrsPerson['uid'] +  "\t Person Name :: " + attrsPerson['cn'] + "\n"
 			self.ipa_pers_cnt  += 1
 
@@ -565,7 +567,7 @@ class SUPR_LDAP:
 
 				memberUIDList.append(str(m.centre_person_id))
 
-			if suaNotSigned:
+			if suaNotSigned and (settings.dcache_resource_id in resourceIDList):
 				self.SUA_PERS_MAIL += "SUPR ID :: " +  str(p.id) + "\t Group Name :: " + str(p.directory_name) + "\t Persons SUA Not signed :: " + ", ".join(suaNotSigned) + "\n"
 				self.sua_pers_cnt  += 1
 
@@ -598,8 +600,9 @@ class SUPR_LDAP:
 					self.l.add_s(groupDN,ldif)
 					self.logger.info("Project with SUPR ID :: %s added to LDAP -- %s \n", p.id, gidNumber)
 
-					self.ADD_PROJ_MAIL += "SUPR ID :: " +  str(p.id) + "\t Project Name :: " + p.directory_name + "\t Persons Added :: " + ", ".join(memberUIDList) + "\n"
-					self.add_proj_cnt  += 1
+					if settings.dcache_resource_id in resourceIDList:
+						self.ADD_PROJ_MAIL += "SUPR ID :: " +  str(p.id) + "\t Project Name :: " + p.directory_name + "\t Persons Added :: " + ", ".join(memberUIDList) + "\n"
+						self.add_proj_cnt  += 1
 
 				else:
 					if (result_data[0][1]['lastModifiedTime'][0] != attrsGroup['lastModifiedTime']):
@@ -629,11 +632,11 @@ class SUPR_LDAP:
 							self.mod_proj_cnt  += 1
 							newCn = True
 
-						if removeUsers:
+						if removeUsers and (settings.dcache_resource_id in resourceIDList):
 							self.MOD_PROJ_MAIL += "SUPR ID :: " +  str(p.id) + "\t Project Name :: " + attrsGroup['cn'] + "\t Persons Removed :: " + ", ".join(removeUsers) + "\n"
 							self.mod_proj_cnt  += 1
 
-						if addUsers:
+						if addUsers and (settings.dcache_resource_id in resourceIDList):
 							self.MOD_PROJ_MAIL += "SUPR ID :: " +  str(p.id) + "\t Project Name :: " + attrsGroup['cn'] + "\t Persons Added   :: " + ", ".join(addUsers) + "\n"
 							self.mod_proj_cnt  += 1
 
@@ -671,10 +674,10 @@ class SUPR_LDAP:
 			if (result_data == []):
 				ldif = modlist.addModlist(attrsGroup)
 				self.l.add_s(groupDN,ldif)
-				self.logger.info("Project with ID :: %s added to LDAP -- %s \n", attrsPerson['description'], attrsGroup['gidNumber'])
+				self.logger.info("Person-Project with ID :: %s added to LDAP -- %s \n", attrsPerson['description'], attrsGroup['gidNumber'])
 
 			else:
-				self.logger.info("Project with ID :: %s - already added", attrsPerson['description'])
+				self.logger.info("Person-Project with ID :: %s - already added", attrsPerson['description'])
 
 		except ldap.LDAPError as le:
 			self.logger.error("LDAP Error in addPersonAsProject Module for %s :: %s", str(gidNumber), le)
