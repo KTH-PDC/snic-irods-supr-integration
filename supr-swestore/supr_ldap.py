@@ -46,6 +46,8 @@ class SUPR_LDAP:
 			self.add_pers_cnt   = 0
 			self.mod_pers_cnt   = 0
 			self.err_pers_cnt   = 0
+			self.sua_pers_cnt   = 0
+			self.ipa_pers_cnt   = 0
 
 			self.err_mjr_cnt    = 0
 			self.msgtext        = ""
@@ -58,11 +60,17 @@ class SUPR_LDAP:
 			self.MOD_PERS_MAIL  = "The Following Persons have been Modified on " + settings.today + "\n" 
 			self.MOD_PERS_MAIL += "---------------------------------------------------- \n"
 
+			self.SUA_PERS_MAIL  = "The Following Persons have not signed SUA and hence not added on " + settings.today + "\n" 
+			self.SUA_PERS_MAIL += "---------------------------------------------------- \n"
+
+			self.IPA_PERS_MAIL  = "The Following Persons have been Added to IPA " + settings.today + "\n" 
+			self.IPA_PERS_MAIL += "------------------------------------------------------- \n"
+
 			self.ADD_PROJ_MAIL  = "The Following Projects have been Added on " + settings.today + "\n" 
 			self.ADD_PROJ_MAIL += "----------------------------------------------------- \n"
 
-			self.MOD_PROJ_MAIL  = "The Following Projects have been Modified on " + settings.today 
-			self.MOD_PROJ_MAIL += "\n" + "----------------------------------------------------- \n"
+			self.MOD_PROJ_MAIL  = "The Following Projects have been Modified on " + settings.today + "\n"
+			self.MOD_PROJ_MAIL += "----------------------------------------------------- \n"
 
 			self.ERR_PROJ_MAIL  = "Error in creating the following Projects on " + settings.today + "\n" 
 			self.ERR_PROJ_MAIL += "------------------------------------------------------- \n"
@@ -119,7 +127,7 @@ class SUPR_LDAP:
 
 			# Call to sendMail() Function
 			if self.err_mjr_cnt:
-				self.msgtext += str(self.ERR_MJR_MAIL) + "\n"
+				self.msgtext += str(self.ERR_MJR_MAIL)  + "\n"
 			if self.err_proj_cnt:
 				self.msgtext += str(self.ERR_PROJ_MAIL) + "\n"
 			if self.err_pers_cnt:
@@ -130,6 +138,10 @@ class SUPR_LDAP:
 				self.msgtext += str(self.MOD_PROJ_MAIL) + "\n"
 			if self.add_pers_cnt:
 				self.msgtext += str(self.ADD_PERS_MAIL) + "\n"
+			if self.sua_pers_cnt:
+				self.msgtext += str(self.SUA_PERS_MAIL) + "\n"
+			if self.ipa_pers_cnt:
+				self.msgtext += str(self.IPA_PERS_MAIL) + "\n"
 			if self.mod_pers_cnt:
 				self.msgtext += str(self.MOD_PERS_MAIL) + "\n"
 			if self.msgtext:
@@ -144,7 +156,7 @@ class SUPR_LDAP:
 	# Mail to be to be sent to User for FreeIPA
 	def sendIPAMail(self,m):
 
-		msgTxt  = msgTxt  = "Dear " + m.first_name + " " + m.last_name + ",\n \n"
+		msgTxt  = "Dear " + m.first_name + " " + m.last_name + ",\n \n"
 		#msgTxt += "You are receiving this mail as you are added as a member to Swestore project -- " + proj_name + " in SUPR. \n\n"
 		msgTxt += "To set password to access Swestore/dCache or Swestore/iRods, login to portal - http://auth1.swestore.se/ipa/supr/supr-auth1.cgi \n"
 		msgTxt += "First time, you will be redirected to SUPR for confirmation and then you can set a password which you can use to login to Swestore/iRods \n"
@@ -251,7 +263,7 @@ class SUPR_LDAP:
 		try:
 			# Check if the member already exists in LDAP
 			filter = "(memberUid=" + uidNumber+")"
-			retrievedAttrs = ['gidNumber', 'resourceID']
+			retrievedAttrs = ['gidNumber', 'resourceID', 'cn']
 
 			ldap_result_id = self.l.search(settings.groupsDN, self.searchScope, filter, retrievedAttrs)
 			result_type, result_data = self.l.result(ldap_result_id)
@@ -382,8 +394,6 @@ class SUPR_LDAP:
 	# Function to add new person to ipa
 	def addPersontoFreeIPA(self,m,attrsPerson):
 
-
-
 		try:
 			user = attrsPerson['uid']
 			opts = {"givenname": attrsPerson['gn'], 
@@ -394,6 +404,9 @@ class SUPR_LDAP:
 			        }
 			result = self.ipa.user_add(user, opts)
 			self.sendIPAMail(m)
+
+			self.IPA_PERS_MAIL += "SUPR ID :: " +  str(m.id) + "\t username(uid) :: " + attrsPerson['uid'] +  "\t Person Name :: " + attrsPerson['cn'] + "\n"
+			self.ipa_pers_cnt  += 1
 
 		except Exception as e:
 			self.logger.error("Error in addPersontoFreeIPA Module for %s :: %s", str(attrsPerson['uid']), e)
@@ -419,17 +432,23 @@ class SUPR_LDAP:
 
 							for gidNumber in gidNumbers:
 								# Kris Add code here.
-								
+
 								gid = gidNumber[1].get('gidNumber')[0]
 								resourceIDList = gidNumber[1].get('resourceID')
+								proj_name = gidNumber[1].get('cn')[0]
 
 								groupDN = "gidNumber=" + gid + "," + settings.groupsDN
-								oldMemberUid = {'memberUid':_[uidNumber]}
-								newMemberUid = {'memberUid': [m.centre_person_id]}
-								ldif = modlist.modifyModlist(oldMemberUid,newMemberUid)
-								self.l.modify_s(groupDN,ldif)
-							
+								oldMemberUid = [(ldap.MOD_DELETE, 'memberUid', str(uidNumber))]
+								newMemberUid = [(ldap.MOD_ADD, 'memberUid', str(m.centre_person_id))]
+
+								self.l.modify_s(groupDN,oldMemberUid)
+								self.l.modify_s(groupDN,newMemberUid)
+
 								self.addPerson(m,uidNumber,resourceIDList)
+
+								# code for adding SUA approved person to irods
+								if(settings.irods_resource_id in resourceIDList):
+									supr_irods_pirc.addUser(m, proj_name, [], [] )
 
 							self.logger.info("Person with SUPR ID :: %s SUP is signed and will be updated to LDAP.", m.id)
 
@@ -505,7 +524,8 @@ class SUPR_LDAP:
 			memberUIDList  = []
 			resourceIDList = []
 			#resourceList   = []
-                        sua_accepted = None
+			suaNotSigned = []
+			sua_accepted = None
 
 			for rp in p.resourceprojects:
 				resourceIDList.append(str(rp.resource.id))
@@ -529,10 +549,11 @@ class SUPR_LDAP:
 						self.logger.info("Person with SUPR ID :: %s SUP is signed and will be added to LDAP.", m.id)
 					else:
 						sua_accepted = False
+						suaNotSigned.append(str(m.id))
 						# To send user mail regarding SUA in SUPR for all projects
 						self.sendUserMail(m, p.name, sua_accepted)
 						self.logger.info("Person with SUPR ID :: %s SUP is not signed and will not be added to LDAP.", m.id)
-						
+
 						# Kris : Add UidNumber as MemberUid in Group fo SUP not signed
 						m.centre_person_id = uidNumber
 				else:
@@ -544,6 +565,11 @@ class SUPR_LDAP:
 
 				memberUIDList.append(str(m.centre_person_id))
 
+			if suaNotSigned:
+				self.SUA_PERS_MAIL += "SUPR ID :: " +  str(p.id) + "\t Group Name :: " + str(p.directory_name) + "\t Persons SUA Not signed :: " + ", ".join(suaNotSigned) + "\n"
+				self.sua_pers_cnt  += 1
+
+			# Add irods projects to a list
 			if settings.irods_resource_id in resourceIDList:
 				self.irods_projects.append(p)
 
