@@ -406,7 +406,7 @@ class SUPR_LDAP:
 			result = self.ipa.user_add(user, opts)
 			self.sendIPAMail(m)
 
-			self.logger.info("Person with SUPR ID :: %s added to IPA -- %s", m.id, str(uidNumber))
+			self.logger.info("Person with SUPR ID :: %s added to IPA -- %s", m.id, str(attrsPerson['uidNumber']))
 			self.IPA_PERS_MAIL += "SUPR ID :: " +  str(m.id) + "\t username(uid) :: " + attrsPerson['uid'] +  "\t Person Name :: " + attrsPerson['cn'] + "\n"
 			self.ipa_pers_cnt  += 1
 
@@ -432,6 +432,12 @@ class SUPR_LDAP:
 					if not gidNumbers == []:
 						if m.user_agreement_version and m.user_agreement_accepted:
 
+							self.addPerson(m,uidNumber,resourceIDList)
+
+							# code for adding SUA approved person to irods
+							if(settings.irods_resource_id in resourceIDList):
+								supr_irods_pirc.addUser(m, proj_name, [], [] )
+
 							for gidNumber in gidNumbers:
 								# Kris Add code here.
 
@@ -445,12 +451,6 @@ class SUPR_LDAP:
 
 								self.l.modify_s(groupDN,oldMemberUid)
 								self.l.modify_s(groupDN,newMemberUid)
-
-								self.addPerson(m,uidNumber,resourceIDList)
-
-								# code for adding SUA approved person to irods
-								if(settings.irods_resource_id in resourceIDList):
-									supr_irods_pirc.addUser(m, proj_name, [], [] )
 
 							self.logger.info("Person with SUPR ID :: %s SUP is signed and will be updated to LDAP.", m.id)
 
