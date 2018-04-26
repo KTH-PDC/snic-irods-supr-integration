@@ -34,7 +34,6 @@ def addPersontoFreeIPA(m):
 			"userpassword":temp_password(),
 			}
 		result = ipa.user_add(user, opts)
-                print result
 		logger.info(user + " added to IPA")
 
 	except Exception as e:
@@ -79,8 +78,8 @@ for p in res.matches:
                 print (str(m.id) + " --  " + m.centre_person_id)  
 		reply = ipa.user_find(user)
 		if reply['result']['result']:
-			ipa.passwd(principal,temp_password())
-			logger.info(user + " already exists in IPA. Adding a temp password")
+			#ipa.passwd(principal,temp_password())
+			logger.info(user + " already exists in IPA.")
 		else:
 			addPersontoFreeIPA(m)
                         logger.info(user + " added to IPA with temp password")
