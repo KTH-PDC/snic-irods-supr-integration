@@ -401,9 +401,10 @@ class SUPR_LDAP:
 			        "sn": attrsPerson['sn'], 
 			        "mail" : attrsPerson['mail'], 
 			        "uidnumber":attrsPerson['uidNumber'],
-			        "userpassword":temp_password(), # uncomment when ipa goes to production
+			        "userpassword":temp_password(),
 			        }
 			result = self.ipa.user_add(user, opts)
+			result = self.ipa.group_add_member('irodsusers', user, 'user')
 			self.sendIPAMail(m)
 
 			self.logger.info("Person with SUPR ID :: %s added to IPA -- %s", m.id, str(attrsPerson['uidNumber']))
