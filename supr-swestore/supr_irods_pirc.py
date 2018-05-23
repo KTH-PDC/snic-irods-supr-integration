@@ -368,7 +368,7 @@ class SUPR_IRODS:
 			#msgTxt += "Kindly use the yubikey that has been sent you earlier. \n \n"
 
 		msgTxt += "For more information on connecting and using snic-irods,\n"
-		msgTxt += "please refer to http://snicdocs.nsc.liu.se/wiki/Swestore-irods \n \n"
+		msgTxt += "please refer to http://snicdocs.nsc.liu.se/wiki/Swestore-iRODS \n \n"
 		msgTxt += "Regards,\n" + "Swestore/iRODS Support Team"
 
 		sendMail(msgTxt, settings.IRODS_FROM_ADDRS, m.email, settings.IRODS_USR_SUBJECT)
