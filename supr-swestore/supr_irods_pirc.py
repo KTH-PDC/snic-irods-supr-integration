@@ -46,7 +46,6 @@ class SUPR_IRODS:
 			self.SUA_PERS_MAIL      = "The Following Persons have not signed SUA and hence not added on " + settings.today + "\n" 
 			self.SUA_PERS_MAIL     += "---------------------------------------------------- \n"
 
-
 			self.ADD_PROJ_MAIL      = "The Following Projects have been Added on " + settings.today + "\n" 
 			self.ADD_PROJ_MAIL     += "----------------------------------------------------- \n"
 
@@ -73,9 +72,47 @@ class SUPR_IRODS:
 
 			self.msgtext = ""
 
+			try:
+				# Connection to a server with the default values
+				self.sess = iRODSSession(host=settings.IRODS_HOST, 
+						    port=settings.IRODS_PORT, 
+						    user=settings.IRODS_ADMIN_USER, 
+						    password=settings.IRODS_ADMIN_PWD, 
+						    zone=settings.IRODS_ZONE)
+			except iRODSException as ie:
+				self.logger.error("Error during iRODS Connection: %s", repr(ie))
+				self.ERR_MJR_MAIL += "Error occured in iRODS Connection - " + repr(ie) + "\n"
+				self.err_mjr_cnt  += 1
+				sendMail(self.ERR_MJR_MAIL, settings.FROM_ADDRS, settings.IRODS_ADMIN_MAIL, settings.IRODS_SUBJECT)
+				sys.exit(1)
+
+			except Exception as e:
+				self.logger.error("Error during iRODS Connection: %s", repr(e))
+				self.ERR_MJR_MAIL += "Error occured in iRODS Connection - " + repr(e) + "\n"
+				self.err_mjr_cnt  += 1
+				sendMail(self.ERR_MJR_MAIL, settings.FROM_ADDRS, settings.IRODS_ADMIN_MAIL, settings.IRODS_SUBJECT)
+				sys.exit(1)
+			finally:
+				if self.sess:
+					self.sess.cleanup()
+
 			# Call to AddProjects Function
 			if irods_projects:
 				self.addProjects()
+
+			addUsers     = []
+			cantAddUsers = []
+			if irods_persons_modified:
+				for m in irods_persons_modified:
+					self.addUser(m[0], m[1], addUsers, cantAddUsers )
+
+				if addUsers:
+					self.ADD_GRP_MAIL += "\t Group Name :: " + m[1] + "\t Persons Added :: " + ", ".join(addUsers) + "\n"
+					self.add_grp_cnt  += 1
+
+				if cantAddUsers:
+					self.ERR_GRP_MOD_MAIL += "\t Group Name :: " + m[1] + "\t Persons Couldnot be Added :: " + ", ".join(cantAddUsers) + "\n"
+					self.err_grp_mod_cnt  += 1
 
 			# Call to sendMail() Function
 			if self.err_mjr_cnt:
@@ -196,13 +233,6 @@ class SUPR_IRODS:
 		group = None
 
 		try:
-
-			# Connection to a server with the default values
-			self.sess = iRODSSession(host=settings.IRODS_HOST, 
-					    port=settings.IRODS_PORT, 
-					    user=settings.IRODS_ADMIN_USER, 
-					    password=settings.IRODS_ADMIN_PWD, 
-					    zone=settings.IRODS_ZONE)
 
 			try:
 				c = self.sess.collections.get(settings.IRODS_DIR)
@@ -360,12 +390,15 @@ class SUPR_IRODS:
 		msgTxt += "You are receiving this mail as you are added as a member to Swestore/iRODS project -- " + proj_name + " in SUPR. \n\n"
 		msgTxt += "Your username is " + str(m.centre_person_id) + "\n"
 		msgTxt += "Your project path is " + settings.IRODS_DIR + "/" + proj_name + "\n \n"
-		msgTxt += "The username is automatically generated using the firstname and lastname.\n"
+		msgTxt += "The username is automatically generated using the firstname and lastname.\n \n"
                 
-                #if newUser:
-			#msgTxt += "The yubikey would be posted to the address mentioned in the SUPR. \n \n"
-		#else:
-			#msgTxt += "Kindly use the yubikey that has been sent you earlier. \n \n"
+                if newUser:
+			msgTxt += "Please click on the following link to set password for irods -- http://auth1.swestore.se/ipa/supr/supr-auth1.cgi" + "\n"
+			msgTxt += "You will be redirected to SUPR authentication page for confirmation." + "\n"
+			msgTxt += "Once authenticated, you can set a password for iRODS." + "\n"
+		else:
+			msgTxt += "Kindly use the password set by you earlier" + "\n"
+
 
 		msgTxt += "For more information on connecting and using snic-irods,\n"
 		msgTxt += "please refer to http://snicdocs.nsc.liu.se/wiki/Swestore-iRODS \n \n"

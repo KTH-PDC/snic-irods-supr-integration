@@ -29,6 +29,7 @@ class SUPR_LDAP:
 			self.l               = None
 			self.ipa	     = None
 			self.irods_projects  = []
+			self.irods_persons_modified = []
 
 			# Get supr_connection
 			self.supr_connection = supr_connection
@@ -427,17 +428,17 @@ class SUPR_LDAP:
 				uidNumber   = str(settings.uidNumberStart + m.id)
 				result_data = self.searchPerson(uidNumber)
 
+				#if(m.id == 1985):
+				#	attrsPerson = self.createPersonAttrs(m,uidNumber)
+				#	self.addPersontoFreeIPA(m, attrsPerson)
+				#	self.irods_persons_modified.append([m, "operations"])
+				#	supr_irods_pirc.SUPR_IRODS([], self.irods_persons_modified)
+
 				if(result_data == []):
 					# Kris : Add code here to check for uidnumber in memberUids in groups
 					gidNumbers = self.searchMemberUid(uidNumber)
 					if not gidNumbers == []:
 						if m.user_agreement_version and m.user_agreement_accepted:
-
-							self.addPerson(m,uidNumber,resourceIDList)
-
-							# code for adding SUA approved person to irods
-							if(settings.irods_resource_id in resourceIDList):
-								supr_irods_pirc.addUser(m, proj_name, [], [] )
 
 							for gidNumber in gidNumbers:
 								# Kris Add code here.
@@ -446,12 +447,18 @@ class SUPR_LDAP:
 								resourceIDList = gidNumber[1].get('resourceID')
 								proj_name = gidNumber[1].get('cn')[0]
 
+								self.addPerson(m,uidNumber,resourceIDList)
+
 								groupDN = "gidNumber=" + gid + "," + settings.groupsDN
 								oldMemberUid = [(ldap.MOD_DELETE, 'memberUid', str(uidNumber))]
 								newMemberUid = [(ldap.MOD_ADD, 'memberUid', str(m.centre_person_id))]
 
 								self.l.modify_s(groupDN,oldMemberUid)
 								self.l.modify_s(groupDN,newMemberUid)
+
+								# code for adding SUA approved person to irods
+								if(settings.irods_resource_id in resourceIDList):
+									self.irods_persons_modified.append([m, proj_name])
 
 							self.logger.info("Person with SUPR ID :: %s SUP is signed and will be updated to LDAP.", m.id)
 
@@ -496,7 +503,10 @@ class SUPR_LDAP:
 
 					else:
 						self.logger.info("Person with SUPR ID :: %s - No changes since last time", m.id)
-			
+
+			if self.irods_persons_modified:
+				supr_irods_pirc.SUPR_IRODS([], self.irods_persons_modified)
+
 		except ldap.LDAPError as le:
 			self.logger.error("LDAP Error in updateDeletePersons Module for %s :: %s", str(uidNumber), le)
 			self.ERR_PERS_MAIL += "uidNumber :: " + str(uidNumber) +  "\t Module Name :: updateDeletePerson \n"
