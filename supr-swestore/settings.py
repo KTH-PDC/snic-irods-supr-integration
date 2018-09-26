@@ -30,13 +30,17 @@ TLS_CERTFILE        = "/etc/grid-security/supr-cert.pem"
 TLS_KEYFILE         = "/etc/grid-security/supr-key.pem"
 
 # LDAP DN
-groupsDN            = "ou=Groups," + baseDN 
+groupsDN            = "ou=Groups," + baseDN
 peopleDN            = "ou=People," + baseDN
 uidNumberStart      = 30000
 gidNumberStart      = 6000
 
 # Centre Resource ID in SUPR for Swestore
 resource_centre_id  = 9
+PDC_centre_id       = 7
+
+# PDC Kerberos tag
+PDC_kerberos       = "NADA.KTH.SE"
 
 # iRODS Resource ID in SUPR
 irods_resource_id   = '32'
@@ -55,10 +59,10 @@ IRODS_ADMIN_PWD     = # irods admin password
 IRODS_ZONE          = "snic.se"
 
 # FreeIPA User
-IPA_HOST	    =  "auth1.swestore.se"
-IPA_ADMIN_USER	    =  "supr"
-IPA_ADMIN_PWD	    =  # IPA Admin password
- 
+IPA_HOST            =  "auth1.swestore.se"
+IPA_ADMIN_USER      =  "supr"
+IPA_ADMIN_PWD       =  # IPA Admin password
+
 # Get a date object
 today               = datetime.date.today().strftime("%Y-%m-%d")
 
