@@ -25,37 +25,37 @@ class SUPR_IRODS:
             # Get Logging File Handler
             self.logger              = setup_log(self.__class__.__name__, settings.IRODS_LOG_FILE)
 
-            # Variables needed for calculating number of projects and persons created
+            # Variables needed for calculating number of projects and persons created 
             # that are used to sendMail to Admins
             self.add_proj_cnt        = 0
             self.err_proj_cnt        = 0
             self.add_grp_cnt         = 0
             self.mod_grp_cnt         = 0
-            self.err_grp_cnt         = 0
+            self.err_grp_cnt         = 0  
             self.err_grp_mod_cnt     = 0
             self.add_pers_cnt        = 0
             self.err_pers_cnt        = 0
             self.sua_pers_cnt        = 0
             self.err_mjr_cnt         = 0
 
-            # Variables needed for Message Text of projects and persons created
+            # Variables needed for Message Text of projects and persons created 
             # that are used to sendMail to Admins
-            self.ADD_PERS_MAIL      = "The Following Persons have been Added on " + settings.today + "\n"
+            self.ADD_PERS_MAIL      = "The Following Persons have been Added on " + settings.today + "\n" 
             self.ADD_PERS_MAIL     += "---------------------------------------------------- \n"
 
-            self.SUA_PERS_MAIL      = "The Following Persons have not signed SUA and hence not added on " + settings.today + "\n"
+            self.SUA_PERS_MAIL      = "The Following Persons have not signed SUA and hence not added on " + settings.today + "\n" 
             self.SUA_PERS_MAIL     += "---------------------------------------------------- \n"
 
-            self.ADD_PROJ_MAIL      = "The Following Projects have been Added on " + settings.today + "\n"
+            self.ADD_PROJ_MAIL      = "The Following Projects have been Added on " + settings.today + "\n" 
             self.ADD_PROJ_MAIL     += "----------------------------------------------------- \n"
 
-            self.ADD_GRP_MAIL       = "The Following Groups have been Added on " + settings.today + "\n"
+            self.ADD_GRP_MAIL       = "The Following Groups have been Added on " + settings.today + "\n" 
             self.ADD_GRP_MAIL      += "----------------------------------------------------- \n"
 
-            self.MOD_GRP_MAIL       = "The Following Groups have been Modified on " + settings.today + "\n"
+            self.MOD_GRP_MAIL       = "The Following Groups have been Modified on " + settings.today + "\n" 
             self.MOD_GRP_MAIL      += "----------------------------------------------------- \n"
 
-            self.ERR_PROJ_MAIL      = "Error in creating the following Projects on " + settings.today + "\n"
+            self.ERR_PROJ_MAIL      = "Error in creating the following Projects on " + settings.today + "\n" 
             self.ERR_PROJ_MAIL     += "------------------------------------------------------- \n"
 
             self.ERR_GRP_MAIL       = "Error in creating the following Groups on " + settings.today + "\n"
@@ -64,20 +64,20 @@ class SUPR_IRODS:
             self.ERR_GRP_MOD_MAIL   = "Error in modifying the following Groups on " + settings.today + "\n"
             self.ERR_GRP_MOD_MAIL  += "---------------------------------------------------- \n"
 
-            self.ERR_PERS_MAIL      = "Error in creating the following Persons on " + settings.today + "\n"
+            self.ERR_PERS_MAIL      = "Error in creating the following Persons on " + settings.today + "\n" 
             self.ERR_PERS_MAIL     += "------------------------------------------------------- \n"
 
-            self.ERR_MJR_MAIL       = "Major Error Occured on " + settings.today + "\n"
+            self.ERR_MJR_MAIL       = "Major Error Occured on " + settings.today + "\n" 
             self.ERR_MJR_MAIL      += "---------------------------------- \n"
 
             self.msgtext = ""
 
             try:
                 # Connection to a server with the default values
-                self.sess = iRODSSession(host=settings.IRODS_HOST,
-                                         port=settings.IRODS_PORT,
-                                         user=settings.IRODS_ADMIN_USER,
-                                         password=settings.IRODS_ADMIN_PWD,
+                self.sess = iRODSSession(host=settings.IRODS_HOST, 
+                                         port=settings.IRODS_PORT, 
+                                         user=settings.IRODS_ADMIN_USER, 
+                                         password=settings.IRODS_ADMIN_PWD, 
                                          zone=settings.IRODS_ZONE)
             except iRODSException as ie:
                 self.logger.error("Error during iRODS Connection: %s", repr(ie))
@@ -153,6 +153,7 @@ class SUPR_IRODS:
                 certi_subj = str((m.subject).encode('utf-8'))
             try:
                 user       = self.sess.users.get(userName)
+                newUser    = False
 
                 # Add Certificate subject to irods
                 if (not user.dn) or (user.dn and certi_subj not in user.dn):
@@ -162,32 +163,32 @@ class SUPR_IRODS:
                         self.logger.info(userName + " certificate added to irods auth")
 
                 # Add PDC Kerberos principal to irods
-                if m.centre_persons_ids:
+                if m.centre_person_ids:
                         for cpid in m.centre_persons_ids:
 
                             if cpid.centre.id == settings.PDC_centre_id:
                                 pdc_kerberos_principal = cpid.centre_person_id + "@" + settings.PDC_kerberos
-
+    
                                 if pdc_kerberos_principal not in user.dn:
-                                    sess.users.modify(userName, 'addAuth', pdc_kerberos_principal)
+                                    self.sess.users.modify(userName, 'addAuth', pdc_kerberos_principal)
                                     self.logger.info(pdc_kerberos_principal + " -- PDC Kerberos principal added to irods user -- " + userName)
                                 else:
                                     self.logger.info(pdc_kerberos_principal + " -- PDC Kerberos principal already exists for irods user -- " + userName)
                             else:
-                                self.logger.info(pdc_kerberos_principal + " -- No PDC Kerberos principal exists for irods user -- " + userName)
+                                self.logger.info("No PDC Kerberos principal exists for irods user -- " + userName)
 
                 self.logger.info(userName + " user already exists")
-                newUser = False
-
+                
             except UserDoesNotExist:
                 try:
                     user     = self.sess.users.create(userName, "rodsuser")
                     self.logger.info(userName + " user created")
-
+                    newUser = True
+                    
                     # Add temporary user password to irods
                     self.sess.users.modify(userName, 'password', temp_password())
                     self.logger.info(userName + " temporary initial password added to irods")
-
+                    
                     # Add Certificate Subject to irods
                     if not certi_subj == "":
                         self.sess.users.modify(userName, 'addAuth', certi_subj)
@@ -197,17 +198,16 @@ class SUPR_IRODS:
                     kerberos_principal = userName+"@SWESTORE.SE"
                     self.sess.users.modify(userName, 'addAuth', kerberos_principal)
                     self.logger.info(kerberos_principal + " -- SWESTORE Kerberos principal added to irods user -- " + userName)
-
+                    
                     # Add PDC Kerberos principal to irods
-                    if m.centre_persons_ids:
-                        for cpid in m.centre_persons_ids:
-
+                    if m.centre_person_ids:
+                        for cpid in m.centre_person_ids:
+        
                             if cpid.centre.id == settings.PDC_centre_id:
                                 pdc_kerberos_principal = cpid.centre_person_id + "@" + settings.PDC_kerberos
-                                sess.users.modify(userName, 'addAuth', pdc_kerberos_principal)
+                                self.sess.users.modify(userName, 'addAuth', pdc_kerberos_principal)
                                 self.logger.info(pdc_kerberos_principal + " -- PDC Kerberos principal added to irods user -- " + userName)
 
-                    newUser = True
                     self.ADD_PERS_MAIL += "SUPR ID :: " +  str(m.id) + "\t username(uid) :: " + userName +  "\t Person Name :: " + str((m.first_name).encode('utf-8')) + " " + str((m.last_name).encode('utf-8')) + "\n"
                     self.add_pers_cnt  += 1
 
@@ -419,7 +419,7 @@ class SUPR_IRODS:
         msgTxt += "Your username is " + str(m.centre_person_id) + "\n"
         msgTxt += "Your project path is " + settings.IRODS_DIR + "/" + proj_name + "\n \n"
         msgTxt += "The username is automatically generated using the firstname and lastname.\n \n"
-
+                
         if newUser:
             msgTxt += "Please click on the following link to set password for irods -- http://auth1.swestore.se/ipa/supr/supr-auth1.cgi" + "\n"
             msgTxt += "You will be redirected to SUPR authentication page for confirmation." + "\n"
