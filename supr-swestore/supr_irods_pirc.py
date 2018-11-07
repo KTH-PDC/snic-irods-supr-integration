@@ -164,7 +164,7 @@ class SUPR_IRODS:
 
                 # Add PDC Kerberos principal to irods
                 if m.centre_person_ids:
-                        for cpid in m.centre_persons_ids:
+                        for cpid in m.centre_person_ids:
 
                             if cpid.centre.id == settings.PDC_centre_id:
                                 pdc_kerberos_principal = cpid.centre_person_id + "@" + settings.PDC_kerberos
