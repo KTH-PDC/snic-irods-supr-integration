@@ -1,15 +1,14 @@
 #!/usr/bin/python
 #! -*- coding: utf-8 -*-
 
-import datetime
 import logging
-from requests import ConnectionError
 import sys
 import supr
-
 import settings
 import supr_ldap
 
+from datetime import datetime
+from requests import ConnectionError
 from supr_common import (setup_log,
                          sendMail)
 
@@ -33,14 +32,25 @@ except IOError as ie:
 # Search in SUPR
 try:
     # Prepare a SUPR connection object
-    supr_connection = supr.SUPR(user = settings.SUPR_API_USER_NAME,
+    supr_connection = supr.SUPR(user = settings.SUPR_API_USER_NAME, 
                                 password = settings.SUPR_API_PASSWORD,
                                 base_url = settings.SUPR_BASE_URL)
 
+    today_date = datetime.strptime(t, "%Y-%m-%d %H:%M:%S").date()
+    #print today_date
+    
     # Compose query from the below options
-    params = {'full_person_data': '1', 'all_centre_person_ids':'1', 'resource_centre_id': settings.resource_centre_id, 'modified_since': t}
-    res = supr_connection.get("project/search/", params = params)
+    #params = {'full_person_data': '1', 'all_centre_person_ids':'1', 'resource_centre_id': settings.resource_centre_id, 'modified_since': t}
 
+    # Changing query into two parts to solve continuation projects start date problem 
+    params = {'full_person_data': '1', 'all_centre_person_ids':'1', 'resource_centre_id': settings.resource_centre_id, 'start_date': today_date, 'end_date_gt': today_date}
+
+    res = supr_connection.get("project/search/", params = params)
+    
+    params = {'full_person_data': '1', 'all_centre_person_ids':'1', 'resource_centre_id': settings.resource_centre_id, 'start_date_lt': today_date, 'end_date_gt': today_date, 'modified_since': t}
+
+    res1 = supr_connection.get("project/search/", params = params)
+    
 except supr.SUPRHTTPError as e:
     # Logging Errors from SUPR
     log_main.error("HTTP error from SUPR - %s" %e.text)
@@ -54,16 +64,22 @@ except ConnectionError as ce:
 all_projects     = []
 persons_modified = []
 
+
 # Loop through the results from the search in SUPR
 for p in res.matches:
+
     all_projects.append(p)
+   
+for p in res1.matches:
+
+    all_projects.append(p)   
 
 # Search in SUPR
 try:
     # Compose query from the below options
     params = {'modified_since': t, 'all_centre_person_ids':'1'}
-    res = supr_connection.get("person/search/", params = params)
 
+    res = supr_connection.get("person/search/", params = params)
 except supr.SUPRHTTPError as e:
     # Logging Errors from SUPR
     log_main.error("HTTP error from SUPR - %s" %e.text)
