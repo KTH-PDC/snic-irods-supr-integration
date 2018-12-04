@@ -285,6 +285,7 @@ class SUPR_IRODS:
             for p in self.irods_projects:
 
                 proj_name = ((p.directory_name).encode('utf-8')).lower()
+                newGroup = None
 
                 # Creation of projects. It is created as collection
                 try:
@@ -373,26 +374,28 @@ class SUPR_IRODS:
                     self.sua_pers_cnt  += 1
 
                 # update the Ownership of the collection from admin to the group
-                try:
-                    access = iRODSAccess("own", settings.IRODS_DIR + "/" + proj_name, proj_name, settings.IRODS_ZONE)
-                    self.sess.permissions.set(access,recursive=True)
-                    self.logger.info("Ownership added to " + proj_name + "\n")
+                if newGroup:
+                    try:
+                        access = iRODSAccess("own", settings.IRODS_DIR + "/" + proj_name, proj_name, settings.IRODS_ZONE)
+                        self.sess.permissions.set(access,recursive=True)
+                        self.logger.info("Ownership added to " + proj_name + "\n")
 
-                except Exception as e:
-                    self.logger.error("Ownership could not be added to " + proj_name + " due to " + repr(e))
-                    self.ERR_PROJ_MAIL += "SUPR ID :: " +  str(p.id) + "\t Ownership could not be added to Group :: " + proj_name + "\n"
-                    self.err_proj_cnt  += 1
+                    except Exception as e:
+                        self.logger.error("Ownership could not be added to " + proj_name + " due to " + repr(e))
+                        self.ERR_PROJ_MAIL += "SUPR ID :: " +  str(p.id) + "\t Ownership could not be added to Group :: " + proj_name + "\n"
+                        self.err_proj_cnt  += 1
 
                 # update the Inheritance of the collection
-                try:
-                    access = iRODSAccess("inherit", settings.IRODS_DIR+ "/" + proj_name, proj_name, settings.IRODS_ZONE)
-                    self.sess.permissions.set(access,recursive=True)
-                    self.logger.info("Inheritance enabled to " + proj_name + "\n")
+                if newGroup:
+                    try:
+                        access = iRODSAccess("inherit", settings.IRODS_DIR+ "/" + proj_name, proj_name, settings.IRODS_ZONE)
+                        self.sess.permissions.set(access,recursive=True)
+                        self.logger.info("Inheritance enabled to " + proj_name + "\n")
 
-                except Exception as e:
-                    self.logger.error("Inheritance could not be enabled to " + proj_name + " due to " + repr(e))
-                    self.ERR_PROJ_MAIL += "SUPR ID :: " +  str(p.id) + "\t Inheritance could not be added to Group :: " +  proj_name + "\n"
-                    self.err_proj_cnt  += 1
+                    except Exception as e:
+                        self.logger.error("Inheritance could not be enabled to " + proj_name + " due to " + repr(e))
+                        self.ERR_PROJ_MAIL += "SUPR ID :: " +  str(p.id) + "\t Inheritance could not be added to Group :: " +  proj_name + "\n"
+                        self.err_proj_cnt  += 1
 
         except iRODSException as ie:
             self.logger.error("Error during iRODS Connection: %s", repr(ie))

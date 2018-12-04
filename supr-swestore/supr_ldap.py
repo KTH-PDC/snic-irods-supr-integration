@@ -27,7 +27,7 @@ class SUPR_LDAP:
             # Get Logging File Handler
             self.logger          = setup_log(self.__class__.__name__, settings.LOG_FILE)
             self.l               = None
-            self.ipa             = None
+            self.ipa         = None
             self.irods_projects  = []
             self.irods_persons_modified = []
 
@@ -105,8 +105,17 @@ class SUPR_LDAP:
             # Connect to FreeIPA
             try:
                 self.ipa = ipahttp.ipa(settings.IPA_HOST)
-                self.ipa.log = setup_log("IPA_ADD_USER", settings.IPA_LOG_FILE)
-                self.ipa.login(settings.IPA_ADMIN_USER, settings.IPA_ADMIN_PWD)
+                self.ipa.log = setup_log("IPA_ADD_USER", settings.LOG_FILE)
+                rv = self.ipa.login(settings.IPA_ADMIN_USER, settings.IPA_ADMIN_PWD)
+
+                if rv.status_code != 200:
+                    self.logger.error("Could not connect to IPA")
+                    self.ERR_MJR_MAIL += "Could not connect to IPA \n"
+                    sendMail(self.ERR_MJR_MAIL, settings.FROM_ADDRS, settings.DCACHE_ADMIN_MAIL, settings.LDAP_SUBJECT)
+                    sys.exit(1)
+                else:
+                    self.logger.info("Connected to IPA")
+
             except Exception as e:
                 self.logger.error("FreeIPA Connection Error - %s", e)
                 self.ERR_MJR_MAIL += "Error occured in FreeIPA Connection - " + str(e) + "\n"
@@ -435,7 +444,7 @@ class SUPR_LDAP:
                 #   supr_irods_pirc.SUPR_IRODS([], self.irods_persons_modified)
 
                 if(result_data == []):
-
+                    
                     # check for uidnumber in memberUids in groups
                     gidNumbers = self.searchMemberUid(uidNumber)
                     if not gidNumbers == []:
