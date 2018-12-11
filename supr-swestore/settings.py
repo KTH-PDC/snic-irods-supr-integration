@@ -52,7 +52,7 @@ dcache_resource_id  = '31'
 
 IRODS_DIR           = "/snic.se/projects"
 IRODS_HOME_DIR      = "/snic.se/home"
-IRODS_HOST          = "snic2-irods.nsc.liu.se"
+IRODS_HOST          = "irods-login.swestore.se"
 IRODS_PORT          = 2432
 IRODS_ADMIN_USER    = "supr"
 IRODS_ADMIN_PWD     = # irods admin password
