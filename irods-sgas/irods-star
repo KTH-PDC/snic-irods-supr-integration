@@ -12,12 +12,45 @@ import logging
 from subprocess import Popen, PIPE
 from string import maketrans
 from random import randint
+import supr
+
+SUPR_API_USER_NAME  = "api-c-9-2"
+SUPR_API_PASSWORD   = "YH5mKs3smk"
+SUPR_BASE_URL       = "https://supr.snic.se/api/"
+irods_resource_id   = '32'
+GID_MAPPING         = dict()
 
 FQAN = "/snic.se/"
 
 PH = "/snic.se/projects"
 
-PROJECT_NAMES = "select distinct data_owner_name from r_data_main;" 
+#PROJECT_NAMES = "select distinct data_owner_name from r_data_main;" 
+
+# Get irods projects and corresponding DNR from SUPR
+try:
+	# Prepare a SUPR connection object
+	supr_connection = supr.SUPR(user = SUPR_API_USER_NAME, 
+				    password = SUPR_API_PASSWORD,
+				    base_url = SUPR_BASE_URL)
+
+	# Compose query from the below options
+	params = {'resource_id': irods_resource_id}
+
+	res = supr_connection.get("project/search/", params = params)
+
+	for p in res.matches:
+		GID_MAPPING[str(p.directory_name)] = str(p.name)
+	#print GID_MAPPING
+
+except supr.SUPRHTTPError as e:
+	# Logging Errors from SUPR
+	sys.stderr.write("HTTP error from SUPR - %s" %e.text)
+	sys.exit(1)
+except ConnectionError as ce:
+	sys.stderr.write("Connection to SUPR failed - %s" %str(ce))
+	sys.exit(1)
+
+
 
 PHYSICAL_USAGE_QUERY = """
 SELECT
@@ -59,12 +92,11 @@ def split_csv(values):
 
 
 STORAGE_SHARE_MAPPING = split_csv('')
-GID_MAPPING = []
 
-for record in query_chimera(PROJECT_NAMES):
-	project, = record
+#for record in query_chimera(PROJECT_NAMES):
+	#project, = record
 	#g = project.split(PH+"/")
-	GID_MAPPING.append(project)
+	#GID_MAPPING.append(project)
 
 ISOZ_TIME_FORMAT   = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -171,14 +203,15 @@ def build_id(group, media, now):
 def fetch_physical_record_data():
     sums = {}
     counts = {}
-    group = ''
 
     for record in query_chimera(PHYSICAL_USAGE_QUERY):
         gid, site_pool, media, rcu, count = record
+        group = None
 
         share = STORAGE_SHARE_MAPPING.get(site_pool)
-        if str(gid) in GID_MAPPING:
-		group = str(gid)
+        
+        if str(gid) in GID_MAPPING.keys():
+		   group = GID_MAPPING.get(str(gid))
 
         if group:
            key = (group, share, media)
@@ -247,4 +280,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
