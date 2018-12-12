@@ -559,8 +559,9 @@ class SUPR_LDAP:
                 # ( Example 30023 - 30000 is the start range and 23 is the person id from SUPR )
                 uidNumber = str(settings.uidNumberStart + m.id)
                 result_data = self.searchPerson(uidNumber)
+                result_data_mid = self.searchMemberUid(uidNumber)
 
-                if(result_data == []):
+                if(result_data == [] and result_data_mid == []):
                     if m.user_agreement_version and m.user_agreement_accepted:
                         self.addPerson(m,uidNumber,resourceIDList)
                         sua_accepted = True
@@ -578,10 +579,9 @@ class SUPR_LDAP:
 
                         # Add UidNumber as MemberUid in Group fo SUP not signed
                         m.centre_person_id = uidNumber
-                else:
-                    if(result_data[0][1].get('uid')[0]):
-                        m.centre_person_id = result_data[0][1].get('uid')[0]
-                        #self.sendIPAMail(m)
+                elif (result_data and result_data[0][1].get('uid')[0]):
+                    m.centre_person_id = result_data[0][1].get('uid')[0]
+                    #self.sendIPAMail(m)
 
                     self.logger.info("Person with SUPR ID :: %s - Already added to LDAP \n", m.id)
 
