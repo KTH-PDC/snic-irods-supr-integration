@@ -27,7 +27,7 @@ class SUPR_LDAP:
             # Get Logging File Handler
             self.logger          = setup_log(self.__class__.__name__, settings.LOG_FILE)
             self.l               = None
-            self.ipa         = None
+            self.ipa             = None
             self.irods_projects  = []
             self.irods_persons_modified = []
 
@@ -61,8 +61,8 @@ class SUPR_LDAP:
             self.MOD_PERS_MAIL  = "The Following Persons have been Modified on " + settings.today + "\n"
             self.MOD_PERS_MAIL += "---------------------------------------------------- \n"
 
-            self.SUA_PERS_MAIL  = "The Following Persons have not signed SUA and hence not added on " + settings.today + "\n"
-            self.SUA_PERS_MAIL += "---------------------------------------------------- \n"
+            self.SUA_PERS_MAIL  = "The Following Persons have not signed SUA and hence not Added on " + settings.today + "\n"
+            self.SUA_PERS_MAIL += "---------------------------------------------------------------------------- \n"
 
             self.IPA_PERS_MAIL  = "The Following Persons have been Added to IPA " + settings.today + "\n"
             self.IPA_PERS_MAIL += "------------------------------------------------------- \n"
@@ -114,7 +114,7 @@ class SUPR_LDAP:
                     sendMail(self.ERR_MJR_MAIL, settings.FROM_ADDRS, settings.DCACHE_ADMIN_MAIL, settings.LDAP_SUBJECT)
                     sys.exit(1)
                 else:
-                    self.logger.info("Connected to IPA")
+                    self.logger.info("Connected to IPA \n")
 
             except Exception as e:
                 self.logger.error("FreeIPA Connection Error - %s", e)
@@ -212,7 +212,7 @@ class SUPR_LDAP:
         firstname = ((m.first_name).replace(" ", "")).lower()
         lastname  = (m.last_name).replace(" ", "").lower()
 
-        if len(firstname) < 3 and len(lastname) < 3:
+        if (len(firstname) < 3 and len(lastname) < 3):
             uid = "s_" + asciify(u'' + firstname + lastname)
             guesses.append(str(uid))
         else:
@@ -227,7 +227,7 @@ class SUPR_LDAP:
                            (0,5, False),
                            (5,0, False),
                           ):
-                if len(firstname) < flen or len(lastname) < llen:
+                if (len(firstname) < flen or len(lastname) < llen):
                     continue
                 if swap:
                     uid = "s_" + asciify(u'' + lastname[:llen] + firstname[:flen])
@@ -245,7 +245,7 @@ class SUPR_LDAP:
             ldap_result_id = self.l.search(settings.peopleDN, self.searchScope, filter, self.retrievedAttrs)
             result_type, result_data = self.l.result(ldap_result_id, 0)
 
-            if (result_data == []):
+            if (not result_data):
                 return login
 
         # No guess possible
@@ -316,20 +316,20 @@ class SUPR_LDAP:
     # Function to check Person Data has changed
     def personChanged(self,result_data, attrsPerson):
 
-        if(result_data[0][1].get('description',False) and result_data[0][1].get('description', '')[0] != attrsPerson['description']):
+        if ((result_data[0][1].get('description',False) and result_data[0][1].get('description', '')[0] != attrsPerson['description'])):
             return True
-        if(result_data[0][1].get('givenName',False) and result_data[0][1].get('givenName','')[0] != attrsPerson['gn']):
+        if ((result_data[0][1].get('givenName',False) and result_data[0][1].get('givenName','')[0] != attrsPerson['gn'])):
             return True
-        if(result_data[0][1].get('sn',False) and result_data[0][1].get('sn', '')[0] != attrsPerson['sn']):
+        if ((result_data[0][1].get('sn',False) and result_data[0][1].get('sn', '')[0] != attrsPerson['sn'])):
             return True
-        if(result_data[0][1].get('cn',False) and result_data[0][1].get('cn', '')[0] != attrsPerson['cn']):
+        if ((result_data[0][1].get('cn',False) and result_data[0][1].get('cn', '')[0] != attrsPerson['cn'])):
             return True
-        if(result_data[0][1].get('mail',False) and result_data[0][1].get('mail', '')[0] != attrsPerson['mail']):
+        if ((result_data[0][1].get('mail',False) and result_data[0][1].get('mail', '')[0] != attrsPerson['mail'])):
             return True
-        if((result_data[0][1].get('subject') == None and attrsPerson['subject']) or
+        if ((result_data[0][1].get('subject') == None and attrsPerson['subject']) or
            (result_data[0][1].get('subject') and result_data[0][1].get('subject', '')[0] != attrsPerson['subject'])):
             return True
-        if(result_data[0][1].get('uid',False) and result_data[0][1].get('uid', '')[0] != attrsPerson['uid']):
+        if ((result_data[0][1].get('uid',False) and result_data[0][1].get('uid', '')[0] != attrsPerson['uid'])):
             return True
 
         return False
@@ -345,7 +345,7 @@ class SUPR_LDAP:
             ldif = modlist.addModlist(attrsPerson)
             self.l.add_s(personDN,ldif)
 
-            self.logger.info("Person with SUPR ID :: %s added to LDAP -- %s", m.id, str(uidNumber))
+            self.logger.info("\n Person with SUPR ID SUP is signed :: %s and added to LDAP -- %s", m.id, str(uidNumber))
 
             if settings.dcache_resource_id in resourceIDList:
                 self.ADD_PERS_MAIL += "SUPR ID :: " +  str(m.id) + "\t username(uid) :: " + attrsPerson['uid'] +  "\t Person Name :: " + attrsPerson['cn'] + "\n"
@@ -430,25 +430,19 @@ class SUPR_LDAP:
     # Function to update Person Data or delete merged Persons
     def updateDeletePersons(self):
 
-        gidNumbers = None
+        gidNumbers = []
         try:
             for m in self.persons_modified:
 
                 uidNumber   = str(settings.uidNumberStart + m.id)
                 result_data = self.searchPerson(uidNumber)
 
-                #if(m.id == 1985):
-                #   attrsPerson = self.createPersonAttrs(m,uidNumber)
-                #   self.addPersontoFreeIPA(m, attrsPerson)
-                #   self.irods_persons_modified.append([m, "operations"])
-                #   supr_irods_pirc.SUPR_IRODS([], self.irods_persons_modified)
-
-                if(result_data == []):
+                if (not result_data):
                     
                     # check for uidnumber in memberUids in groups
                     gidNumbers = self.searchMemberUid(uidNumber)
-                    if not gidNumbers == []:
-                        if m.user_agreement_version and m.user_agreement_accepted:
+                    if gidNumbers:
+                        if (m.user_agreement_version and m.user_agreement_accepted):
 
                             for gidNumber in gidNumbers:
 
@@ -466,7 +460,7 @@ class SUPR_LDAP:
                                 self.l.modify_s(groupDN,newMemberUid)
 
                                 # code for adding SUA approved person to irods
-                                if(settings.irods_resource_id in resourceIDList):
+                                if settings.irods_resource_id in resourceIDList:
                                     self.irods_persons_modified.append([m, proj_name])
 
                             self.logger.info("Person with SUPR ID :: %s SUP is signed and will be updated to LDAP.", m.id)
@@ -479,7 +473,7 @@ class SUPR_LDAP:
                         mergeUidNumber   = str(settings.uidNumberStart + merge_id)
                         result_data_mrg  = self.searchPerson(mergeUidNumber)
 
-                        if(result_data_mrg == []):
+                        if(not result_data_mrg):
                             self.logger.info("Person with SUPR ID :: %s has already been deleted from LDAP since its merged with SUPR ID :: %s ", merge_id, m.id)
                         else:
                             personDN = "uid=" + result_data_mrg[0][1].get('uid')[0] + "," + settings.peopleDN
@@ -511,7 +505,7 @@ class SUPR_LDAP:
                         self.mod_pers_cnt  += 1
 
                     else:
-                        self.logger.info("Person with SUPR ID :: %s - No changes since last time", m.id)
+                        self.logger.info("Person with SUPR ID :: %s - No changes since last time \n", m.id)
 
             if self.irods_persons_modified:
                 supr_irods_pirc.SUPR_IRODS([], self.irods_persons_modified)
@@ -561,20 +555,19 @@ class SUPR_LDAP:
                 result_data = self.searchPerson(uidNumber)
                 result_data_mid = self.searchMemberUid(uidNumber)
 
-                if(result_data == [] and result_data_mid == []):
-                    if m.user_agreement_version and m.user_agreement_accepted:
+                if ((not result_data) and (not result_data_mid)):
+                    if (m.user_agreement_version and m.user_agreement_accepted):
                         self.addPerson(m,uidNumber,resourceIDList)
                         sua_accepted = True
 
                         # To send user mail regarding user certificate registration in SUPR for dcache projects
                         if settings.dcache_resource_id in resourceIDList:
-                            self.sendUserMail(m, p.name, sua_accepted)
-                        self.logger.info("Person with SUPR ID :: %s SUP is signed and will be added to LDAP.", m.id)
+                            self.sendUserMail(m, p.directory_name, sua_accepted)
                     else:
                         sua_accepted = False
                         suaNotSigned.append(str(m.id))
                         # To send user mail regarding SUA in SUPR for all projects
-                        self.sendUserMail(m, p.name, sua_accepted)
+                        self.sendUserMail(m, p.directory_name, sua_accepted)
                         self.logger.info("Person with SUPR ID :: %s SUP is not signed and will not be added to LDAP.", m.id)
 
                         # Add UidNumber as MemberUid in Group fo SUP not signed
@@ -583,12 +576,12 @@ class SUPR_LDAP:
                     m.centre_person_id = result_data[0][1].get('uid')[0]
                     #self.sendIPAMail(m)
 
-                    self.logger.info("Person with SUPR ID :: %s - Already added to LDAP \n", m.id)
+                    self.logger.info("Person with SUPR ID :: %s - Already added to LDAP", m.id)
 
                 memberUIDList.append(str(m.centre_person_id))
 
-            if suaNotSigned and (settings.dcache_resource_id in resourceIDList):
-                self.SUA_PERS_MAIL += "SUPR ID :: " +  str(p.id) + "\t Group Name :: " + str(p.directory_name) + "\t Persons SUA Not signed :: " + ", ".join(suaNotSigned) + "\n"
+            if (suaNotSigned and (settings.dcache_resource_id in resourceIDList)):
+                self.SUA_PERS_MAIL += "SUPR ID :: " +  str(p.id) + "\t Project Name :: " + str(p.directory_name) + "\t Persons SUA Not signed :: " + ", ".join(suaNotSigned) + "\n"
                 self.sua_pers_cnt  += 1
 
             # Add irods projects to a list
@@ -615,7 +608,7 @@ class SUPR_LDAP:
                 result_data = self.searchProject(gidNumber, attrsGroup['cn'])
 
                 # Load data into LDAP
-                if (result_data == []):
+                if (not result_data):
                     ldif = modlist.addModlist(attrsGroup)
                     self.l.add_s(groupDN,ldif)
                     self.logger.info("Project with SUPR ID :: %s added to LDAP -- %s \n", p.id, gidNumber)
@@ -625,7 +618,7 @@ class SUPR_LDAP:
                         self.add_proj_cnt  += 1
 
                 else:
-                    if (result_data[0][1]['lastModifiedTime'][0] != attrsGroup['lastModifiedTime']):
+                    if (result_data and (result_data[0][1]['lastModifiedTime'][0] != attrsGroup['lastModifiedTime'])):
 
                         addUsers    = list(set(memberUIDList).difference(set(result_data[0][1]['memberUid'])))
                         removeUsers = list(set(result_data[0][1]['memberUid']).difference(set(memberUIDList)))
@@ -691,10 +684,10 @@ class SUPR_LDAP:
             result_data = self.searchProject(gidNumber, attrsGroup['cn'])
 
             # Load data into LDAP
-            if (result_data == []):
+            if (not result_data):
                 ldif = modlist.addModlist(attrsGroup)
                 self.l.add_s(groupDN,ldif)
-                self.logger.info("Person-Project with ID :: %s added to LDAP -- %s \n", attrsPerson['description'], attrsGroup['gidNumber'])
+                self.logger.info("Person-Project with ID :: %s added to LDAP -- %s", attrsPerson['description'], attrsGroup['gidNumber'])
 
             else:
                 self.logger.info("Person-Project with ID :: %s - already added", attrsPerson['description'])
