@@ -15,7 +15,7 @@ from random import randint
 import supr
 
 SUPR_API_USER_NAME  = "api-c-9-2"
-SUPR_API_PASSWORD   = "YH5mKs3smk"
+SUPR_API_PASSWORD   = ""
 SUPR_BASE_URL       = "https://supr.snic.se/api/"
 irods_resource_id   = '32'
 GID_MAPPING         = dict()
