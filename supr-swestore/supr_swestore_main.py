@@ -37,10 +37,8 @@ try:
                                 base_url = settings.SUPR_BASE_URL)
 
     today_date = datetime.strptime(t, "%Y-%m-%d %H:%M:%S").date()
-    #print today_date
     
     # Compose query from the below options
-    #params = {'full_person_data': '1', 'all_centre_person_ids':'1', 'resource_centre_id': settings.resource_centre_id, 'modified_since': t}
 
     # Changing query into two parts to solve continuation projects start date problem 
     params = {'full_person_data': '1', 'all_centre_person_ids':'1', 'resource_centre_id': settings.resource_centre_id, 'start_date': today_date, 'end_date_gt': today_date}

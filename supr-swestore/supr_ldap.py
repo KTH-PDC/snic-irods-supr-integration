@@ -375,7 +375,9 @@ class SUPR_LDAP:
                 d = {'username' : m.centre_person_id,
                      'person_id' : m.id,
                      'resource_id' : resourceid,
-                     'status' : 'enabled'}
+                     'status' : 'enabled',
+                     'button_text' : 'Reset Password', 
+		    }
                 try:
                     account = self.supr_connection.post("account/create/", data = d)
                     self.logger.info("Account for Person with SUPR ID :: %s for resource -- %s created", m.id, resourceid)
@@ -415,7 +417,7 @@ class SUPR_LDAP:
                     }
             result = self.ipa.user_add(user, opts)
             result = self.ipa.group_add_member('irodsusers', user, 'user')
-            self.sendIPAMail(m)
+            #self.sendIPAMail(m)
 
             self.logger.info("Person with SUPR ID :: %s added to IPA -- %s", m.id, str(attrsPerson['uidNumber']))
             self.IPA_PERS_MAIL += "SUPR ID :: " +  str(m.id) + "\t username(uid) :: " + attrsPerson['uid'] +  "\t Person Name :: " + attrsPerson['cn'] + "\n"
@@ -556,6 +558,7 @@ class SUPR_LDAP:
                 result_data_mid = self.searchMemberUid(uidNumber)
 
                 if ((not result_data) and (not result_data_mid)):
+
                     if (m.user_agreement_version and m.user_agreement_accepted):
                         self.addPerson(m,uidNumber,resourceIDList)
                         sua_accepted = True
@@ -572,12 +575,19 @@ class SUPR_LDAP:
 
                         # Add UidNumber as MemberUid in Group fo SUP not signed
                         m.centre_person_id = uidNumber
+
                 elif (result_data and result_data[0][1].get('uid')[0]):
                     m.centre_person_id = result_data[0][1].get('uid')[0]
                     #self.sendIPAMail(m)
 
                     self.logger.info("Person with SUPR ID :: %s - Already added to LDAP", m.id)
 
+                elif result_data_mid:
+                    m.centre_person_id = uidNumber
+
+                if not m.centre_person_id:
+                    m.centre_person_id = uidNumber
+                    
                 memberUIDList.append(str(m.centre_person_id))
 
             if (suaNotSigned and (settings.dcache_resource_id in resourceIDList)):
@@ -606,6 +616,7 @@ class SUPR_LDAP:
 
             try:
                 result_data = self.searchProject(gidNumber, attrsGroup['cn'])
+                self.logger.info("attrsGroup -- %s ", str(attrsGroup))  
 
                 # Load data into LDAP
                 if (not result_data):
@@ -627,9 +638,13 @@ class SUPR_LDAP:
                         if p.continuation_name:
                             gidNumber = result_data[0][1]['gidNumber'][0]
                             groupDN   = "gidNumber=" + gidNumber + "," + settings.groupsDN
-                            attrsGroup['description']  = suprIds + [str(p.id)]
+                            if str(p.id) not in suprIds:
+                                attrsGroup['description']  = suprIds + [str(p.id)]
+                            else:
+                                attrsGroup['description']  = suprIds                            
 
-                        self.l.delete_s(groupDN)
+                        self.logger.info("attrsGroup -- %s ", str(attrsGroup))
+			self.l.delete_s(groupDN)
                         ldif = modlist.addModlist(attrsGroup)
                         self.l.add_s(groupDN,ldif)
 

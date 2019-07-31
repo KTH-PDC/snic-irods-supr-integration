@@ -370,8 +370,8 @@ class SUPR_IRODS:
                     self.err_grp_mod_cnt  += 1
 
                 if suaNotSigned:
-                    self.SUA_PERS_MAIL += "SUPR ID :: " +  str(p.id) + "\t Group Name :: " + proj_name + "\t Persons SUA Not signed :: " + ", ".join(suaNotSigned) + "\n"
-                    self.sua_pers_cnt  += 1
+                    #self.SUA_PERS_MAIL += "SUPR ID :: " +  str(p.id) + "\t Group Name :: " + proj_name + "\t Persons SUA Not signed :: " + ", ".join(suaNotSigned) + "\n"
+                    self.sua_pers_cnt  += 0
 
                 # update the Ownership of the collection from admin to the group
                 if newGroup:
